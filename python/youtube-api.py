@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 
 import argparse
+from collections import OrderedDict
 import csv
-import requests
 import datetime
+import requests
 
 """
+Running:
 $ python3 youtube-api.py [input_file OR video_id]
 
 """
 
 # Globals: API key
-api_key = open('.api_key').read()
-
+api_key = open('.api_key').read().strip()
+quota_counter = 100000
 
 """
 * * Sample request:
@@ -98,6 +100,17 @@ part=snippet%2Creplies
 """
 
 
+def timestamp_to_utc(timestamp):
+    """Convert unix timestamp to UTC date
+    :param timestamp: int - the unix timestamp integer
+    :return: utc_data - the date in YYYY-MM-DD format
+    """
+    timestamp = int(str(timestamp)[0:10])
+    utc_date = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d')
+    return utc_date
+
+
+# TODO: revise and refactor
 def store_csv(video_id, json_response):
     """Store the traffic stats as a CSV, with schema (refer to main()).
 
@@ -121,13 +134,14 @@ def store_csv(video_id, json_response):
     return ''
 
 
-def send_request(resource, video_id, part, max_results, order='relevance'):
+def send_request(resource, query_volume, video_id, part, max_results, order_by='relevance'):
     """
-    :param resource:
+    :param resource: 'commentThreads' - only this for now
+    :param query_volume: 'all' or 'once' - set to 'all' to get all comments
     :param video_id:
     :param part:
     :param max_results:
-    :param order:
+    :param order_by:
     :return:
     """
     if resource == 'commentThreads':
@@ -137,12 +151,35 @@ def send_request(resource, video_id, part, max_results, order='relevance'):
         payload = {
             'part': part,
             'maxResults': max_results,
-            'order': order,
+            'order': order_by,
             'videoId': video_id,
             'key': api_key
         }
         response = requests.get(base_url, params=payload)
-        return response
+        response_json = response.json()
+
+        comments_list = []
+        # print(len(comments_list) + 1)  # debug
+
+        if query_volume == 'once' or response_json.get('nextPageToken') is None:
+            comments_list += response_json['items']
+            return comments_list
+
+        if query_volume == 'all':
+            # Getting all comments if there's a paging token, adding them all to the list after
+            while response_json.get('nextPageToken'):
+                next_page_token = response_json.get('nextPageToken')
+                payload = {
+                    'part': part,
+                    'maxResults': max_results,
+                    'order': order_by,
+                    'videoId': video_id,
+                    'pageToken': next_page_token,
+                    'key': api_key
+                }
+                response_json = requests.get(base_url, params=payload).json()
+                comments_list += response_json['items']
+                # print(len(comments_list))  # debug
 
 
 def main():
@@ -150,17 +187,22 @@ def main():
     Input Schema: inputs.csv
     video_id, video_title
 
-    Output Schema: [date_time]-comments.csv
+    > Output Schema: [date_time]-comments.csv
     video_id, comment_id, comment_date, updated_date, commenter_name, commenter_url, parent_comment, child_comment,
 
-        Mock:
+    > Mock:
     qwerty1234, asdf1234, 2016-09-09T11:52:18.000Z, 2016-09-09T11:52:18.000Z, randomUser, someURL, "
 
     """
-    response = send_request('commentThreads', 'srXsCRnSgBA', 'snippet,replies', 100, 'relevance')
-    response_json = response.json()
-    print(len(response_json))
-    print(response_json)
+    comments_list = send_request(resource='commentThreads',
+                                 query_volume='all',
+                                 video_id='srXsCRnSgBA',
+                                 part='snippet,replies',
+                                 max_results=100,
+                                 order_by='relevance')
+
+    print(len(comments_list))
+    # print(response_json)
 
     return ''
 
