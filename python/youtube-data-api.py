@@ -12,15 +12,15 @@ $ python3 youtube-api.py [input_file OR video_id]
 
 """
 
-# Globals: API key
+# Globals
 api_key = open('.api_key').read().strip()
 quota_counter = 100000
 
 # Starting up the CSV
 current_timestamp = str(datetime.datetime.now().strftime('%Y-%m-%d-%Hh-%Mm'))  # was .strftime('%Y-%m-%d'))
 csv_file_name = 'data/output/' + current_timestamp + '-youtube-comments.csv'
-headers = ['video_id', 'comment_id', 'comment_date', 'updated_date', 'commenter_name', 'top_level_comment',
-           'comment_reply']
+headers = ['video_id', 'comment_id', 'comment_date', 'updated_date', 'commenter_name',
+           'top_level_comment_num', 'top_level_comment', 'comment_reply']
 with open(csv_file_name, 'a') as csv_file:
     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     csv_writer.writerow(headers)
@@ -44,12 +44,15 @@ def store_csv(video_id, comments):
     :param video_id: string -
     :param comments: list -
     """
+    comment_count = 0
     for comment in comments:
+        comment_count += 1
         row = [video_id,
                comment['id'],
                comment['snippet']['topLevelComment']['snippet']['publishedAt'],
                comment['snippet']['topLevelComment']['snippet']['updatedAt'],
                comment['snippet']['topLevelComment']['snippet']['authorDisplayName'],
+               str(comment_count),
                comment['snippet']['topLevelComment']['snippet']['textDisplay'],
                " - "]
         with open(csv_file_name, 'a') as csv_file:
@@ -64,6 +67,7 @@ def store_csv(video_id, comments):
                        reply['snippet']['publishedAt'],
                        reply['snippet']['updatedAt'],
                        reply['snippet']['authorDisplayName'],
+                       " - ",
                        " - ",
                        reply['snippet']['textDisplay']]
 
