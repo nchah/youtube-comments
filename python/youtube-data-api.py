@@ -19,7 +19,7 @@ quota_counter = 100000
 # Starting up the CSV
 current_timestamp = str(datetime.datetime.now().strftime('%Y-%m-%d-%Hh-%Mm'))  # was .strftime('%Y-%m-%d'))
 csv_file_name = 'data/output/' + current_timestamp + '-youtube-comments.csv'
-headers = ['video_id', 'comment_id', 'comment_date', 'updated_date', 'commenter_name',
+headers = ['video_title', 'video_id', 'comment_id', 'comment_date', 'updated_date', 'commenter_name',
            'top_level_comment_num', 'top_level_comment', 'comment_reply']
 with open(csv_file_name, 'a') as csv_file:
     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -36,7 +36,7 @@ def timestamp_to_utc(timestamp):
     return utc_date
 
 
-def store_csv(video_id, comments):
+def store_csv(video_id, video_title, comments):
     """Store the traffic stats as a CSV, with schema:
     > Output Schema: [date_time]-comments.csv
     video_id, comment_id, comment_date, updated_date, commenter_name, parent_comment, child_comment,
@@ -47,7 +47,7 @@ def store_csv(video_id, comments):
     comment_count = 0
     for comment in comments:
         comment_count += 1
-        row = [video_id,
+        row = [video_title, video_id,
                comment['id'],
                comment['snippet']['topLevelComment']['snippet']['publishedAt'],
                comment['snippet']['topLevelComment']['snippet']['updatedAt'],
@@ -55,14 +55,18 @@ def store_csv(video_id, comments):
                str(comment_count),
                comment['snippet']['topLevelComment']['snippet']['textDisplay'],
                " - "]
-        with open(csv_file_name, 'a') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        with open(csv_file_name, 'a') as csv_file1:
+            csv_writer = csv.writer(csv_file1, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(row)
+
+        with open(csv_file_name[:len(csv_file_name)-4] + "-" + video_id + '.csv', 'a') as csv_file2:
+            csv_writer = csv.writer(csv_file2, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             csv_writer.writerow(row)
 
         # Getting the replies to each topLevelComment
         if comment.get('replies'):
             for reply in comment['replies']['comments']:
-                row = [video_id,
+                row = [video_title, video_id,
                        reply['id'],
                        reply['snippet']['publishedAt'],
                        reply['snippet']['updatedAt'],
@@ -75,14 +79,19 @@ def store_csv(video_id, comments):
                     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                     csv_writer.writerow(row)
 
+                with open(csv_file_name[:len(csv_file_name)-4] + "-" + video_id + '.csv', 'a') as csv_file2:
+                    csv_writer = csv.writer(csv_file2, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    csv_writer.writerow(row)
+
     return ''
 
 
-def send_request(resource, query_volume, video_id, part, max_results, order_by='relevance'):
+def send_request(resource, query_volume, video_id, video_title, part, max_results, order_by='relevance'):
     """
     :param resource: 'commentThreads' - only this for now
     :param query_volume: 'all' or 'once' - set to 'all' to get all comments
     :param video_id:
+    :param video_title:
     :param part:
     :param max_results:
     :param order_by:
@@ -107,7 +116,7 @@ def send_request(resource, query_volume, video_id, part, max_results, order_by='
 
         if query_volume == 'once' or response_json.get('nextPageToken') is None:
             comments_list += response_json['items']
-            store_csv(video_id, comments_list)
+            store_csv(video_id, video_title, comments_list)
             return comments_list
 
         if query_volume == 'all':
@@ -125,7 +134,7 @@ def send_request(resource, query_volume, video_id, part, max_results, order_by='
                 response_json = requests.get(base_url, params=payload).json()
                 comments_list += response_json['items']
                 # print(len(comments_list))  # debug
-                store_csv(video_id, comments_list)
+                store_csv(video_id, video_title, comments_list)
 
 
 def main():
@@ -134,18 +143,20 @@ def main():
     video_id, video_title
     """
 
-    inputs = open('data/input/').readlines()
+    inputs = open('data/input/kim-yt.txt').readlines()
 
     for video in inputs:
         video_id_temp = video.split(",")[1].strip()
+        video_title_temp = video.split(",")[0].strip()
         comments_list = send_request(resource='commentThreads',
                                      query_volume='once',
                                      video_id=video_id_temp,
+                                     video_title=video_title_temp,
                                      part='snippet,replies',
                                      max_results=100,
                                      order_by='relevance')  # 'time' or 'relevance'
-        print(len(comments_list))
-        time.sleep(5)
+        print(video_title_temp + ": " + str(len(comments_list)))
+        time.sleep(10)
 
     return ''
 
