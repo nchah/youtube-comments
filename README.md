@@ -3,6 +3,12 @@
 A work in progress to programmatically obtain YouTube data (views, comments, etc.) for further computational text analysis and qualitative analysis.
 
 
+## Dependencies
+
+In addition to the standard Python libraries, this project also uses the following.
+
+- Requests
+
 ## Run
 
 ```
