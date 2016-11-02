@@ -137,13 +137,12 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
                 store_csv(video_id, video_title, comments_list)
 
 
-def main():
+def main(input_data):
     """
-    Input Schema: inputs.csv
-    video_id, video_title
-    """
+    :param input_data: .txt - has schema: video_title, video_id
 
-    inputs = open('data/input/kim-yt.txt').readlines()
+    """
+    inputs = open(input_data).readlines()
 
     for video in inputs:
         video_id_temp = video.split(",")[1].strip()
@@ -163,11 +162,11 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('user', help='Github username')
+    parser.add_argument('input_data', help='Path to the input data file')
     # parser.add_argument('repo', help='User\'s repo')
     args = parser.parse_args()
-    # main(args.user, args.repo)
-    main()
+    main(args.input_data)
+    # main()
 
 
 """
