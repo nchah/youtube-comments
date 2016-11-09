@@ -23,10 +23,17 @@ Not designed to run with Python 2.x as some unicode support may break.
 
 Input CSV data is composed of the following columns.
 
+```
+video_title, video_id
+```
+
 ### Output
 
 Output CSV data is composed of the following columns. 
 
+```
+video_title, video_id, comment_id, comment_date, updated_date, commenter_name, top_level_comment_num, top_level_comment, comment_reply
+```
 
 ## YouTube Data API v3 Endpoints
 
