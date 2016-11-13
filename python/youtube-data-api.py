@@ -35,6 +35,7 @@ def store_csv(video_id, video_title, comments):
     > Output Schema: [date_time]-comments.csv
     video_id, comment_id, comment_date, updated_date, commenter_name, parent_comment, child_comment,
     :param video_id: string -
+    :param video_title: string -
     :param comments: list -
     """
     global comment_count
@@ -121,7 +122,10 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
             # Getting further comments as long as there's a paging token
             while response_json.get('nextPageToken'):
                 next_page_token = response_json.get('nextPageToken')
-                print('nextPageToken: ' + next_page_token[:20])  # Debug
+                if next_page_token:
+                    print('nextPageToken: ' + next_page_token[:20])  # Debug
+                elif next_page_token is None:
+                    print('nextPageToken: None')
                 payload = {
                     'part': part,
                     'maxResults': max_results,
@@ -143,6 +147,8 @@ def main(input_data):
     """Run top-level logic for API calls
     :param input_data: .txt - has schema: video_title, video_id
     """
+    global comment_count
+
     inputs = open(input_data).readlines()
 
     for video in inputs:
@@ -155,9 +161,8 @@ def main(input_data):
                                      part='snippet,replies',
                                      max_results=100,
                                      order_by='relevance')  # 'time' or 'relevance'
-        print(video_title_temp + ": " + str(len(comments_list)))
+        print(video_title_temp + ": " + str(len(comments_list)) + ", " + str(comment_count) + " comments.")
         time.sleep(10)
-        global comment_count
         comment_count = 0
 
     print("Done main().")
