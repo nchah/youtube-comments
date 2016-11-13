@@ -19,7 +19,8 @@ quota_counter = 100000
 # Starting up the CSV
 current_timestamp = str(datetime.datetime.now().strftime('%Y-%m-%d-%Hh-%Mm'))  # was .strftime('%Y-%m-%d'))
 csv_file_name = 'data/output/' + current_timestamp + '-youtube-comments.csv'
-headers = ['video_title', 'video_id', 'comment_id', 'comment_date', 'updated_date', 'commenter_name',
+headers = ['video_title', 'video_id',
+           'comment_id', 'comment_date', 'updated_date', 'commenter_url', 'commenter_name', 'like_count',
            'top_level_comment_num', 'top_level_comment', 'comment_reply']
 with open(csv_file_name, 'a') as csv_file:
     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -36,7 +37,6 @@ def store_csv(video_id, video_title, comments):
     :param video_id: string -
     :param comments: list -
     """
-    # TODO: add authorChannelUrl, likeCount
     global comment_count
     for comment in comments:
         comment_count += 1
@@ -44,7 +44,9 @@ def store_csv(video_id, video_title, comments):
                comment['id'],
                comment['snippet']['topLevelComment']['snippet']['publishedAt'],
                comment['snippet']['topLevelComment']['snippet']['updatedAt'],
+               comment['snippet']['topLevelComment']['snippet']['authorChannelUrl'],
                comment['snippet']['topLevelComment']['snippet']['authorDisplayName'],
+               comment['snippet']['topLevelComment']['snippet']['likeCount'],
                str(comment_count),
                comment['snippet']['topLevelComment']['snippet']['textDisplay'],
                " - "]
@@ -63,7 +65,9 @@ def store_csv(video_id, video_title, comments):
                        reply['id'],
                        reply['snippet']['publishedAt'],
                        reply['snippet']['updatedAt'],
+                       reply['snippet']['authorChannelUrl'],
                        reply['snippet']['authorDisplayName'],
+                       reply['snippet']['likeCount'],
                        " - ",
                        " - ",
                        reply['snippet']['textDisplay']]
@@ -130,7 +134,7 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
                 comments_list += response_json['items']
                 print(len(comments_list))  # Debug
                 store_csv(video_id, video_title, comments_list)
-                time.sleep(5)
+                time.sleep(10)
                 comments_list = []
             return comments_list
 
