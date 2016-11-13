@@ -8,7 +8,7 @@ import time
 
 """
 Running:
-$ python3 youtube-api.py [input_file OR video_id]
+$ python3 youtube-api.py [path_to_input_file]
 
 """
 
@@ -25,26 +25,19 @@ with open(csv_file_name, 'a') as csv_file:
     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     csv_writer.writerow(headers)
 
-
-def timestamp_to_utc(timestamp):
-    """Convert unix timestamp to UTC date
-    :param timestamp: int - the unix timestamp integer
-    :return: utc_data - the date in YYYY-MM-DD format
-    """
-    timestamp = int(str(timestamp)[0:10])
-    utc_date = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d')
-    return utc_date
+# Making comment_count global to handle multiple store_csv() calls
+comment_count = 0
 
 
 def store_csv(video_id, video_title, comments):
     """Store the traffic stats as a CSV, with schema:
     > Output Schema: [date_time]-comments.csv
     video_id, comment_id, comment_date, updated_date, commenter_name, parent_comment, child_comment,
-
     :param video_id: string -
     :param comments: list -
     """
-    comment_count = 0
+    # TODO: add authorChannelUrl, likeCount
+    global comment_count
     for comment in comments:
         comment_count += 1
         row = [video_title, video_id,
@@ -75,18 +68,17 @@ def store_csv(video_id, video_title, comments):
                        " - ",
                        reply['snippet']['textDisplay']]
 
-                with open(csv_file_name, 'a') as csv_file:
-                    csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                with open(csv_file_name, 'a') as csv_file1:
+                    csv_writer = csv.writer(csv_file1, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                     csv_writer.writerow(row)
 
                 with open(csv_file_name[:len(csv_file_name)-4] + "-" + video_id + '.csv', 'a') as csv_file2:
                     csv_writer = csv.writer(csv_file2, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                     csv_writer.writerow(row)
-
     return ''
 
 
-def send_request(resource, query_volume, video_id, video_title, part, max_results, order_by='relevance'):
+def send_request(resource, query_volume, video_id, video_title, part, max_results, order_by):
     """
     :param resource: 'commentThreads' - only this for now
     :param query_volume: 'all' or 'once' - set to 'all' to get all comments
@@ -110,9 +102,7 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
         }
         response = requests.get(base_url, params=payload)
         response_json = response.json()
-
         comments_list = []
-        # print(len(comments_list) + 1)  # debug
 
         if query_volume == 'once' or response_json.get('nextPageToken') is None:
             comments_list += response_json['items']
@@ -120,9 +110,14 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
             return comments_list
 
         if query_volume == 'all':
-            # Getting all comments if there's a paging token, adding them all to the list after
+            comments_list += response_json['items']
+            print(len(comments_list))  # Debug
+            store_csv(video_id, video_title, comments_list)
+            comments_list = []
+            # Getting further comments as long as there's a paging token
             while response_json.get('nextPageToken'):
                 next_page_token = response_json.get('nextPageToken')
+                print('nextPageToken: ' + next_page_token[:20])  # Debug
                 payload = {
                     'part': part,
                     'maxResults': max_results,
@@ -133,14 +128,16 @@ def send_request(resource, query_volume, video_id, video_title, part, max_result
                 }
                 response_json = requests.get(base_url, params=payload).json()
                 comments_list += response_json['items']
-                # print(len(comments_list))  # debug
+                print(len(comments_list))  # Debug
                 store_csv(video_id, video_title, comments_list)
+                time.sleep(5)
+                comments_list = []
+            return comments_list
 
 
 def main(input_data):
-    """
+    """Run top-level logic for API calls
     :param input_data: .txt - has schema: video_title, video_id
-
     """
     inputs = open(input_data).readlines()
 
@@ -148,7 +145,7 @@ def main(input_data):
         video_id_temp = video.split(",")[1].strip()
         video_title_temp = video.split(",")[0].strip()
         comments_list = send_request(resource='commentThreads',
-                                     query_volume='once',
+                                     query_volume='all',
                                      video_id=video_id_temp,
                                      video_title=video_title_temp,
                                      part='snippet,replies',
@@ -156,7 +153,10 @@ def main(input_data):
                                      order_by='relevance')  # 'time' or 'relevance'
         print(video_title_temp + ": " + str(len(comments_list)))
         time.sleep(10)
+        global comment_count
+        comment_count = 0
 
+    print("Done main().")
     return ''
 
 
