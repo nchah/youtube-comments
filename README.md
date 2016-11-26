@@ -25,6 +25,8 @@ Input CSV data is composed of the following columns.
 
 ```
 video_title, video_id
+OR 
+video_title, video_link
 ```
 
 ### Output
