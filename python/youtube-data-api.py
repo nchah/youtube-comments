@@ -167,7 +167,7 @@ def main(input_data):
                 csv_writer.writerow(headers)
 
             comments_list = send_request(resource='commentThreads',
-                                         query_volume='all',
+                                         query_volume='once',  # 'all' or 'once' - make into CLI option if needed
                                          video_id=temp_video_id,
                                          video_title=temp_video_title,
                                          part='snippet,replies',
